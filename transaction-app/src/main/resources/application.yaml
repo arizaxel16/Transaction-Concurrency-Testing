@@ -8,7 +8,7 @@ spring:
     password:
     hikari:
       minimum-idle: 10 # Minimum number of idle connections to maintain
-      maximum-pool-size: 30 # Maximum number of active connections
+      maximum-pool-size: 40 # Maximum number of active connections
       idle-timeout: 300000 # Maximum time (in milliseconds) that a connection can sit idle in the pool (5 minutes)
       max-lifetime: 1800000 # Maximum lifetime (in milliseconds) of a connection in the pool (30 minutes)
       connection-timeout: 30000 # Maximum time (in milliseconds) to wait for a connection from the pool (30 seconds)

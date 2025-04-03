@@ -159,4 +159,16 @@ public class TransferController {
         };
         return runConcurrentTransfers(transferTask, "Synchronized Transaction Test");
     }
+
+    @PostMapping("/pessimistic-transaction")
+    public ResponseEntity<String> pessimisticTransaction() {
+        Runnable transferTask = () -> {
+            try {
+                transferService.transferWithLock(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
+            } catch (RuntimeException e) {
+                // Optionally log or handle the exception as needed
+            }
+        };
+        return runConcurrentTransfers(transferTask, "Pessimistic Lock Transaction Test");
+    }
 }

@@ -71,4 +71,32 @@ public class TransferService {
         log.info("Thread {}: (Sync) Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
                 Thread.currentThread().getId(), originAccountId, targetAccountId, originAccount.getBalance(), targetAccount.getBalance());
     }
+
+    @Transactional
+    public void transferWithLock(String originAccountId, String targetAccountId, BigDecimal amount) {
+        log.info("Thread {}: (Lock) Attempting transfer from {} to {} amount {}",
+                Thread.currentThread().getId(), originAccountId, targetAccountId, amount);
+
+        // Fetch both accounts with a PESSIMISTIC_WRITE lock.
+        Account originAccount = accountRepository.findByIdForUpdate(originAccountId)
+                .orElseThrow(() -> new RuntimeException("Origin account not found: " + originAccountId));
+        Account targetAccount = accountRepository.findByIdForUpdate(targetAccountId)
+                .orElseThrow(() -> new RuntimeException("Target account not found: " + targetAccountId));
+
+        if (originAccount.getBalance().compareTo(amount) < 0) {
+            log.warn("Thread {}: (Lock) Insufficient balance in account {}. Required: {}, Available: {}",
+                    Thread.currentThread().getId(), originAccountId, amount, originAccount.getBalance());
+            throw new RuntimeException("Insufficient balance in origin account: " + originAccountId);
+        }
+
+        // Perform the transfer
+        originAccount.setBalance(originAccount.getBalance().subtract(amount));
+        targetAccount.setBalance(targetAccount.getBalance().add(amount));
+
+        accountRepository.save(originAccount);
+        accountRepository.save(targetAccount);
+
+        log.info("Thread {}: (Lock) Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
+                Thread.currentThread().getId(), originAccountId, targetAccountId, originAccount.getBalance(), targetAccount.getBalance());
+    }
 }
