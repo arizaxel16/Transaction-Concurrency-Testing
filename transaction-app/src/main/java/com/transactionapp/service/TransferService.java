@@ -1,14 +1,20 @@
 package com.transactionapp.service;
 
+import com.transactionapp.lock.AccountLockManager;
 import com.transactionapp.model.Account;
 import com.transactionapp.repository.AccountRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class TransferService {
@@ -73,18 +79,17 @@ public class TransferService {
     }
 
     @Transactional
-    public void transferWithLock(String originAccountId, String targetAccountId, BigDecimal amount) {
-        log.info("Thread {}: (Lock) Attempting transfer from {} to {} amount {}",
+    public void transferPessimistic(String originAccountId, String targetAccountId, BigDecimal amount) {
+        log.info("Thread {}: (Pessimistic) Attempting transfer from {} to {} amount {}",
                 Thread.currentThread().getId(), originAccountId, targetAccountId, amount);
 
-        // Fetch both accounts with a PESSIMISTIC_WRITE lock.
         Account originAccount = accountRepository.findByIdForUpdate(originAccountId)
                 .orElseThrow(() -> new RuntimeException("Origin account not found: " + originAccountId));
         Account targetAccount = accountRepository.findByIdForUpdate(targetAccountId)
                 .orElseThrow(() -> new RuntimeException("Target account not found: " + targetAccountId));
 
         if (originAccount.getBalance().compareTo(amount) < 0) {
-            log.warn("Thread {}: (Lock) Insufficient balance in account {}. Required: {}, Available: {}",
+            log.warn("Thread {}: (Pessimistic) Insufficient balance in account {}. Required: {}, Available: {}",
                     Thread.currentThread().getId(), originAccountId, amount, originAccount.getBalance());
             throw new RuntimeException("Insufficient balance in origin account: " + originAccountId);
         }
@@ -96,7 +101,85 @@ public class TransferService {
         accountRepository.save(originAccount);
         accountRepository.save(targetAccount);
 
-        log.info("Thread {}: (Lock) Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
+        log.info("Thread {}: (Pessimistic) Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
                 Thread.currentThread().getId(), originAccountId, targetAccountId, originAccount.getBalance(), targetAccount.getBalance());
+    }
+
+    @Retryable(
+            retryFor = { OptimisticLockingFailureException.class },
+            maxAttempts = 15,
+            backoff = @Backoff(
+                    delay = 100,
+                    multiplier = 2,
+                    maxDelay = 2000
+            )
+    )
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void transferOptimistic(String originAccountId, String targetAccountId, BigDecimal amount) {
+        log.info("Thread {}: (Optimistic) Attempting transfer from {} to {} amount {}",
+                Thread.currentThread().getId(), originAccountId, targetAccountId, amount);
+
+        Account originAccount = accountRepository.findById(originAccountId)
+                .orElseThrow(() -> new RuntimeException("Origin account not found: " + originAccountId));
+        Account targetAccount = accountRepository.findById(targetAccountId)
+                .orElseThrow(() -> new RuntimeException("Target account not found: " + targetAccountId));
+
+        if (originAccount.getBalance().compareTo(amount) < 0) {
+            log.warn("Thread {}: (Optimistic) Insufficient balance in account {}. Required: {}, Available: {}",
+                    Thread.currentThread().getId(), originAccountId, amount, originAccount.getBalance());
+            throw new RuntimeException("Insufficient balance in origin account: " + originAccountId);
+        }
+
+        originAccount.setBalance(originAccount.getBalance().subtract(amount));
+        targetAccount.setBalance(targetAccount.getBalance().add(amount));
+
+        accountRepository.save(originAccount);
+        accountRepository.save(targetAccount);
+
+        log.info("Thread {}: (Optimistic) Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
+                Thread.currentThread().getId(), originAccountId, targetAccountId, originAccount.getBalance(), targetAccount.getBalance());
+    }
+
+    @Transactional
+    public void transferReentrantLock(String originAccountId, String targetAccountId, BigDecimal amount) {
+        log.info("Thread {}: (Reentrant) Attempting transfer from {} to {} amount {}",
+                Thread.currentThread().getId(), originAccountId, targetAccountId, amount);
+
+        String firstLockId = originAccountId.compareTo(targetAccountId) < 0 ? originAccountId : targetAccountId;
+        String secondLockId = originAccountId.compareTo(targetAccountId) < 0 ? targetAccountId : originAccountId;
+
+        ReentrantLock firstLock = AccountLockManager.getLock(firstLockId);
+        ReentrantLock secondLock = AccountLockManager.getLock(secondLockId);
+
+        firstLock.lock();
+        try {
+            secondLock.lock();
+            try {
+                Account originAccount = accountRepository.findById(originAccountId)
+                        .orElseThrow(() -> new RuntimeException("Origin account not found: " + originAccountId));
+                Account targetAccount = accountRepository.findById(targetAccountId)
+                        .orElseThrow(() -> new RuntimeException("Target account not found: " + targetAccountId));
+
+                if (originAccount.getBalance().compareTo(amount) < 0) {
+                    log.warn("Thread {}: (Reentrant) Insufficient balance in account {}. Required: {}, Available: {}",
+                            Thread.currentThread().getId(), originAccountId, amount, originAccount.getBalance());
+                    throw new RuntimeException("Insufficient balance in origin account: " + originAccountId);
+                }
+
+                originAccount.setBalance(originAccount.getBalance().subtract(amount));
+                targetAccount.setBalance(targetAccount.getBalance().add(amount));
+
+                accountRepository.save(originAccount);
+                accountRepository.save(targetAccount);
+
+                log.info("Thread {}: (Reentrant) Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
+                        Thread.currentThread().getId(), originAccountId, targetAccountId, originAccount.getBalance(), targetAccount.getBalance());
+
+            } finally {
+                secondLock.unlock();
+            }
+        } finally {
+            firstLock.unlock();
+        }
     }
 }

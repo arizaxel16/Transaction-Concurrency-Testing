@@ -139,11 +139,7 @@ public class TransferController {
     @PostMapping("/default-transaction")
     public ResponseEntity<String> defaultTransaction() {
         Runnable transferTask = () -> {
-            try {
-                transferService.transfer(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
-            } catch (RuntimeException e) {
-                // Handle exception if needed
-            }
+            transferService.transfer(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
         };
         return runConcurrentTransfers(transferTask, "Default Transaction Test");
     }
@@ -151,11 +147,7 @@ public class TransferController {
     @PostMapping("/synchronized-transaction")
     public ResponseEntity<String> synchronizedTransaction() {
         Runnable transferTask = () -> {
-            try {
-                transferService.transferSynchronized(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
-            } catch (RuntimeException e) {
-                // Handle exception if needed
-            }
+            transferService.transferSynchronized(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
         };
         return runConcurrentTransfers(transferTask, "Synchronized Transaction Test");
     }
@@ -163,12 +155,24 @@ public class TransferController {
     @PostMapping("/pessimistic-transaction")
     public ResponseEntity<String> pessimisticTransaction() {
         Runnable transferTask = () -> {
-            try {
-                transferService.transferWithLock(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
-            } catch (RuntimeException e) {
-                // Optionally log or handle the exception as needed
-            }
+            transferService.transferPessimistic(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
         };
         return runConcurrentTransfers(transferTask, "Pessimistic Lock Transaction Test");
+    }
+
+    @PostMapping("/optimistic-transaction")
+    public ResponseEntity<String> optimisticTransaction() {
+        Runnable transferTask = () -> {
+            transferService.transferOptimistic(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
+        };
+        return runConcurrentTransfers(transferTask, "Optimistic Lock Transaction Test");
+    }
+
+    @PostMapping("/reentrant-transaction")
+    public ResponseEntity<String> reentrantLockTransaction() {
+        Runnable transferTask = () -> {
+            transferService.transferReentrantLock(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
+        };
+        return runConcurrentTransfers(transferTask, "Reentrant Lock Transaction Test");
     }
 }
