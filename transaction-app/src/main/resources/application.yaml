@@ -6,7 +6,20 @@ spring:
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
     password:
+    hikari:
+      minimum-idle: 5 # Minimum number of idle connections to maintain
+      maximum-pool-size: 30 # Maximum number of active connections
+      idle-timeout: 300000 # Maximum time (in milliseconds) that a connection can sit idle in the pool (5 minutes)
+      max-lifetime: 1800000 # Maximum lifetime (in milliseconds) of a connection in the pool (30 minutes)
+      connection-timeout: 30000 # Maximum time (in milliseconds) to wait for a connection from the pool (30 seconds)
+      validation-timeout: 5000 # Maximum time (in milliseconds) to wait for a connection to be validated as alive
+      leak-detection-threshold: 0 # Time in milliseconds before logging a message about a potential connection leak (0 disables it)
+      # connection-init-sql: SELECT 1 # SQL query to run to test new connections
+      # pool-name: HikariPool-1 # You can customize the pool name if needed
   jpa:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
