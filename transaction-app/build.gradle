@@ -35,6 +35,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation 'org.springframework.retry:spring-retry'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'org.multiverse:multiverse-core:0.7.0'
 }
 
 tasks.named('test') {

@@ -175,4 +175,20 @@ public class TransferController {
         };
         return runConcurrentTransfers(transferTask, "Reentrant Lock Transaction Test");
     }
+
+    @PostMapping("/atomic-transaction")
+    public ResponseEntity<String> atomicTransaction() {
+        Runnable transferTask = () -> {
+            transferService.transferAtomic(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
+        };
+        return runConcurrentTransfers(transferTask, "Atomic Transaction Test");
+    }
+
+    @PostMapping("/stm-transaction")
+    public ResponseEntity<String> stmTransaction() {
+        Runnable transferTask = () -> {
+            transferService.transferSTM(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
+        };
+        return runConcurrentTransfers(transferTask, "STM Transaction Test");
+    }
 }
