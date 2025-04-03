@@ -21,7 +21,7 @@ public class TransferService {
     }
 
     @Transactional
-    public synchronized void transfer(String originAccountId, String targetAccountId, BigDecimal amount) {
+    public void transfer(String originAccountId, String targetAccountId, BigDecimal amount) {
         log.info("Thread {}: Attempting transfer from {} to {} amount {}",
                 Thread.currentThread().getId(), originAccountId, targetAccountId, amount);
 
@@ -43,6 +43,32 @@ public class TransferService {
         accountRepository.save(targetAccount);
 
         log.info("Thread {}: Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
+                Thread.currentThread().getId(), originAccountId, targetAccountId, originAccount.getBalance(), targetAccount.getBalance());
+    }
+
+    @Transactional
+    public synchronized void transferSynchronized(String originAccountId, String targetAccountId, BigDecimal amount) {
+        log.info("Thread {}: (Sync) Attempting transfer from {} to {} amount {}",
+                Thread.currentThread().getId(), originAccountId, targetAccountId, amount);
+
+        Account originAccount = accountRepository.findById(originAccountId)
+                .orElseThrow(() -> new RuntimeException("Origin account not found: " + originAccountId));
+        Account targetAccount = accountRepository.findById(targetAccountId)
+                .orElseThrow(() -> new RuntimeException("Target account not found: " + targetAccountId));
+
+        if (originAccount.getBalance().compareTo(amount) < 0) {
+            log.warn("Thread {}: (Sync) Insufficient balance in account {}. Required: {}, Available: {}",
+                    Thread.currentThread().getId(), originAccountId, amount, originAccount.getBalance());
+            throw new RuntimeException("Insufficient balance in origin account: " + originAccountId + " (Balance: " + originAccount.getBalance() + ")");
+        }
+
+        originAccount.setBalance(originAccount.getBalance().subtract(amount));
+        targetAccount.setBalance(targetAccount.getBalance().add(amount));
+
+        accountRepository.save(originAccount);
+        accountRepository.save(targetAccount);
+
+        log.info("Thread {}: (Sync) Transfer successful from {} to {}. New Origin Balance: {}, New Target Balance: {}",
                 Thread.currentThread().getId(), originAccountId, targetAccountId, originAccount.getBalance(), targetAccount.getBalance());
     }
 }
