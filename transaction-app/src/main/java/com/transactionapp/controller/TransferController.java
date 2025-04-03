@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 @RestController
@@ -21,6 +22,12 @@ public class TransferController {
     private final AccountRepository accountRepository;
     private final TransferService transferService;
     private ExecutorService executorService;
+    private static final String ACCOUNT_A_ID = "abc";
+    private static final String ACCOUNT_B_ID = "cbd";
+    private static final BigDecimal INITIAL_BALANCE = new BigDecimal("10000.00");
+    private static final BigDecimal TRANSFER_AMOUNT = new BigDecimal("1.00");
+    private static final int NUMBER_OF_THREADS = 30;
+    private static final int NUMBER_OF_TRANSFERS_PER_THREAD = 250;
 
     @Autowired
     public TransferController(AccountRepository accountRepository, TransferService transferService) {
@@ -28,42 +35,34 @@ public class TransferController {
         this.transferService = transferService;
     }
 
-    @PostMapping("/start-transfers")
-    public ResponseEntity<String> startConcurrentTransfers() {
-        // Initialize accounts (moved here so it resets on each trigger if needed)
+    @PostMapping("/run-transfer-test")
+    public ResponseEntity<String> runTransferTest() {
+        // Initialize accounts
         Account accountA = new Account();
-        accountA.setAccountId("abc");
-        accountA.setBalance(new BigDecimal("10000.00"));
+        accountA.setAccountId(ACCOUNT_A_ID);
+        accountA.setBalance(INITIAL_BALANCE);
         accountRepository.save(accountA);
 
         Account accountB = new Account();
-        accountB.setAccountId("cbd");
-        accountB.setBalance(new BigDecimal("10000.00"));
+        accountB.setAccountId(ACCOUNT_B_ID);
+        accountB.setBalance(INITIAL_BALANCE);
         accountRepository.save(accountB);
 
-        String accountAId = "abc";
-        String accountBId = "cbd";
-        BigDecimal transferAmount = new BigDecimal("5.00");
-        int numberOfThreads = 30;
-
-        executorService = Executors.newFixedThreadPool(numberOfThreads);
+        executorService = Executors.newFixedThreadPool(NUMBER_OF_THREADS);
+        AtomicInteger completedTransfers = new AtomicInteger(0);
 
         // Submit tasks to the executor
-        IntStream.range(0, numberOfThreads).forEach(i -> executorService.submit(() -> {
-            while (true) {
+        IntStream.range(0, NUMBER_OF_THREADS).forEach(i -> executorService.submit(() -> {
+            for (int j = 0; j < NUMBER_OF_TRANSFERS_PER_THREAD; j++) {
                 try {
-                    transferService.transfer(accountAId, accountBId, transferAmount);
+                    transferService.transfer(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
+                    completedTransfers.incrementAndGet();
                 } catch (RuntimeException e) {
-                    // Stop the thread if there's an error
-                    System.err.println("Thread " + Thread.currentThread().getId() + " stopped: " + e.getMessage());
-                    break;
+                    System.err.println("Thread " + Thread.currentThread().getId() + " error: " + e.getMessage());
+                    // Optionally break the inner loop if a critical error occurs
+                    // break;
                 }
-                Account currentA = accountRepository.findById(accountAId).orElse(null);
-                Account currentB = accountRepository.findById(accountBId).orElse(null);
-                if (currentA != null && currentB != null && (currentA.getBalance().compareTo(BigDecimal.ZERO) == 0 || currentB.getBalance().compareTo(BigDecimal.ZERO) == 0)) {
-                    break; // Stop if one account reaches zero
-                }
-                // Optional: Add a small delay if needed
+                // Optional: Add a small delay if needed for local testing
                 // try {
                 //     TimeUnit.MILLISECONDS.sleep(10);
                 // } catch (InterruptedException e) {
@@ -73,25 +72,24 @@ public class TransferController {
             }
         }));
 
-        return new ResponseEntity<>("Concurrent transfers initiated.", HttpStatus.OK);
-    }
+        executorService.shutdown();
 
-    @PostMapping("/check-balances")
-    public ResponseEntity<String> checkFinalBalances() {
-        if (executorService != null && !executorService.isShutdown()) {
-            executorService.shutdown();
-            try {
-                executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return new ResponseEntity<>("Error waiting for transfers to complete.", HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+        try {
+            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new ResponseEntity<>("Error waiting for transfers to complete.", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
-        Account finalA = accountRepository.findById("abc").orElse(null);
-        Account finalB = accountRepository.findById("cbd").orElse(null);
-        String balances = "Final Balance of Account abc: " + (finalA != null ? finalA.getBalance() : "N/A") +
-                "\nFinal Balance of Account cbd: " + (finalB != null ? finalB.getBalance() : "N/A");
+        Account finalA = accountRepository.findById(ACCOUNT_A_ID).orElse(null);
+        Account finalB = accountRepository.findById(ACCOUNT_B_ID).orElse(null);
+
+        String balances = "Test Completed.\n" +
+                "Total Transfers Attempted: " + (NUMBER_OF_THREADS * NUMBER_OF_TRANSFERS_PER_THREAD) + "\n" +
+                "Total Transfers (Successfully Recorded): " + completedTransfers.get() + "\n" +
+                "Final Balance of Account " + ACCOUNT_A_ID + ": " + (finalA != null ? finalA.getBalance() : "N/A") + "\n" +
+                "Final Balance of Account " + ACCOUNT_B_ID + ": " + (finalB != null ? finalB.getBalance() : "N/A");
+
         return new ResponseEntity<>(balances, HttpStatus.OK);
     }
 }
