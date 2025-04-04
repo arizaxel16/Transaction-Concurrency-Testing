@@ -191,4 +191,14 @@ public class TransferController {
         };
         return runConcurrentTransfers(transferTask, "STM Transaction Test");
     }
+
+    @PostMapping("/transfer-single-pessimistic")
+    public ResponseEntity<String> transferSinglePessimistic() {
+        try {
+            transferService.transferPessimistic(ACCOUNT_A_ID, ACCOUNT_B_ID, TRANSFER_AMOUNT);
+            return new ResponseEntity<>("Single Pessimistic Transfer Completed.", HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>("Single Pessimistic Transfer Failed: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
