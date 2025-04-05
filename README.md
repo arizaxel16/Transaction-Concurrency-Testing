@@ -422,3 +422,17 @@ Esta disparidad en la distribución de carga entre Host A y Host B, ejecutando p
 
 **Conclusión de la Observación:**
 La diferencia observada es significativa. Mientras que el Host A muestra una interacción aparentemente saludable y balanceada donde la base de datos participa activamente, el Host B sugiere un posible cuello de botella relacionado con la base de datos o la comunicación con ella, o una configuración subóptima que concentra la carga en la aplicación. Se requeriría una investigación más profunda en las configuraciones y métricas detalladas de ambos hosts y sus bases de datos para determinar la causa raíz exacta de esta discrepancia.
+
+### 5. Resultados Comparativos y Viabilidad de Otras Soluciones
+Si bien el análisis anterior se centró en los bloqueos Pesimista y Optimista por ser los más adecuados para operaciones críticas en bases de datos relacionales, es importante revisar brevemente los resultados (o resultados esperados/típicos) de las otras soluciones probadas y por qué son generalmente menos viables en este contexto específico.
+
+**Tabla Comparativa General** 
+| Método                             | Tasa de Éxito (%) | Throughput (Tx/s) | Latencia Prom (ms) | Errores Comunes                          | Observaciones Clave / Viabilidad                                       |
+|------------------------------------|--------------------|--------------------|---------------------|------------------------------------------|------------------------------------------------------------------------|
+| a. Transacción por Defecto         | No hay exitos   | Alto     | Bajo                | Inconsistencia de datos (Balances finales incorrectos) |No Viable: Corrupción de datos garantizada.                         |
+| b. Transacción Sincronizada        | 80%              | Muy Bajo     | Alto                | Ninguno (si la lógica es correcta)       | No Viable: Cuello de botella severo en JVM, no escala.             |
+| c. Transacción Pesimista           | 100%               | Moderado      | Bajo (~3ms)         | Timeouts/Deadlocks (raros si se implementa bien) | Viable y Recomendado: Muy fiable.                                  |
+| d. Transacción Optimista           | ~99.81%            | Moderado       | Variable            | `OptimisticLockingFailureException`      | Viable con Consideraciones: Rápido si hay pocos conflictos.        |
+| e. Transacción con ReentrantLock   | Potencialmente Baja               | Bajo (~??)         | Alto                | Deadlocks (si no se gestiona bien)       | Menos Viable: Similar a synchronized, complejo.                    |
+| f. Transacción Atómica (CAS)       | Potencialmente Baja| Variable           | Variable            | Inconsistencia DB, Fallos CAS            | No Viable: Difícil sincronizar con DB, no idiomático.              |
+| g. Transacción con STM             | Variable           | Variable           | Variable            | Complejidad de integración, Errores STM  | Menos Viable: Excesivo para este problema, complejo.               |
