@@ -24,7 +24,7 @@ A continuación se describen los distintos enfoques evaluados para controlar la 
 
 ### a. Transacción por defecto
 
-```java
+```yaml
     @Transactional
     public void transfer(String originAccountId, String targetAccountId, BigDecimal amount) {
         log.info("Thread {}: Attempting transfer from {} to {} amount {}",
