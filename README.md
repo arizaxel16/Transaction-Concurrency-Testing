@@ -436,3 +436,28 @@ Si bien el análisis anterior se centró en los bloqueos Pesimista y Optimista p
 | e. Transacción con ReentrantLock   | Potencialmente Baja               | Bajo (~??)         | Alto                | Deadlocks (si no se gestiona bien)       | Menos Viable: Similar a synchronized, complejo.                    |
 | f. Transacción Atómica (CAS)       | Potencialmente Baja| Variable           | Variable            | Inconsistencia DB, Fallos CAS            | No Viable: Difícil sincronizar con DB, no idiomático.              |
 | g. Transacción con STM             | Variable           | Variable           | Variable            | Complejidad de integración, Errores STM  | Menos Viable: Excesivo para este problema, complejo.               |
+
+### Análisis de Viabilidad de Otras Soluciones
+
+a. Transacción por Defecto: Como era esperado, sin ningún mecanismo de control, las operaciones concurrentes interfieren entre sí, llevando a condiciones de carrera (lecturas y escrituras concurrentes sobre el mismo saldo) que resultan en saldos finales incorrectos. Es la línea base que demuestra la existencia del problema. No es una solución viable.
+
+b. Transacción Sincronizada (synchronized): Este enfoque serializa la ejecución del método transferSynchronized a nivel de la JVM. Solo un hilo puede ejecutar este método a la vez en una instancia dada del servicio. Si bien previene las condiciones de carrera dentro de esa instancia, se convierte en un cuello de botella masivo, reduciendo drásticamente el throughput. Además, no escala horizontalmente; si se despliegan múltiples instancias de la aplicación, synchronized en una instancia no protege contra la ejecución concurrente en otra instancia, volviendo a generar condiciones de carrera a nivel de base de datos. No es viable para sistemas con carga.
+
+e. Transacción con ReentrantLock: Similar a synchronized, ReentrantLock implementa un bloqueo a nivel de aplicación Java. Aunque ofrece más flexibilidad (ej. intentar adquirir el lock sin esperar), sigue presentando problemas fundamentales para este caso:
+
+*    Escalabilidad: Los locks son locales a la JVM, no protegen entre múltiples instancias de servicio.
+*    Cuello de Botella: Si el lock es muy general (como bloquear por ID de cuenta), puede serializar operaciones innecesariamente.
+*    Complejidad: Requiere gestión manual cuidadosa (adquirir locks en orden consistente para evitar deadlocks, asegurar liberación en bloques finally).
+*    Desacoplamiento de la BD: No protege contra modificaciones realizadas directamente en la base de datos o por otros sistemas. Generalmente menos viable que los bloqueos a nivel de base de datos para operaciones que dependen críticamente del estado persistido.
+
+f. Transacción Atómica (AtomicReference/CAS): Las variables atómicas y Compare-And-Swap son excelentes para gestionar estado en memoria de forma concurrente y sin bloqueos tradicionales. Sin embargo, aplicarlas correctamente a la lógica transaccional de una base de datos es muy complejo y poco idiomático:
+
+*    La atomicidad de CAS es en memoria, no se traduce directamente a la atomicidad de la transacción de base de datos (accountRepository.save).
+*    Sincronizar la actualización atómica en memoria con la escritura (y posible rollback) en la base de datos es difícil de hacer correctamente y puede ser ineficiente (ej. bucles CAS + intentos de commit/rollback de BD).
+*    El ejemplo mostrado es una simplificación; asegurar que ambas cuentas se actualicen atómicamente y que la transacción de BD refleje esto es el verdadero desafío. No es una solución práctica ni robusta para este problema.
+
+  g.    nsacción con STM (Software Transactional Memory): STM aplica conceptos de transacciones de base de datos a la memoria compartida. Es una técnica poderosa pero:
+
+Complejidad: Requiere bibliotecas específicas y un entendimiento profundo de su funcionamiento e integración con el gestor de persistencia (JPA). La integración puede no ser trivial.
+Overkill: Para un problema relativamente directo de actualizar dos filas relacionadas en una base de datos transaccional, STM puede ser una solución excesivamente compleja comparada con los mecanismos nativos de la BD (bloqueos).
+Rendimiento: El rendimiento de STM puede ser variable y sensible a la configuración y patrones de acceso. Menos viable debido a la complejidad y a que el problema central reside en la concurrencia a nivel de base de datos.
