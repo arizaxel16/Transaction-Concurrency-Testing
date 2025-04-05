@@ -456,8 +456,8 @@ f. Transacción Atómica (AtomicReference/CAS): Las variables atómicas y Compar
 *    Sincronizar la actualización atómica en memoria con la escritura (y posible rollback) en la base de datos es difícil de hacer correctamente y puede ser ineficiente (ej. bucles CAS + intentos de commit/rollback de BD).
 *    El ejemplo mostrado es una simplificación; asegurar que ambas cuentas se actualicen atómicamente y que la transacción de BD refleje esto es el verdadero desafío. No es una solución práctica ni robusta para este problema.
 
-  g.    nsacción con STM (Software Transactional Memory): STM aplica conceptos de transacciones de base de datos a la memoria compartida. Es una técnica poderosa pero:
+  g.    Transacción con STM (Software Transactional Memory): STM aplica conceptos de transacciones de base de datos a la memoria compartida. Es una técnica poderosa pero:
 
-Complejidad: Requiere bibliotecas específicas y un entendimiento profundo de su funcionamiento e integración con el gestor de persistencia (JPA). La integración puede no ser trivial.
-Overkill: Para un problema relativamente directo de actualizar dos filas relacionadas en una base de datos transaccional, STM puede ser una solución excesivamente compleja comparada con los mecanismos nativos de la BD (bloqueos).
-Rendimiento: El rendimiento de STM puede ser variable y sensible a la configuración y patrones de acceso. Menos viable debido a la complejidad y a que el problema central reside en la concurrencia a nivel de base de datos.
+*    Complejidad: Requiere bibliotecas específicas y un entendimiento profundo de su funcionamiento e integración con el gestor de persistencia (JPA). La integración puede no ser trivial.
+*    Overkill: Para un problema relativamente directo de actualizar dos filas relacionadas en una base de datos transaccional, STM puede ser una solución excesivamente compleja comparada con los mecanismos nativos de la BD (bloqueos).
+*    Rendimiento: El rendimiento de STM puede ser variable y sensible a la configuración y patrones de acceso. Menos viable debido a la complejidad y a que el problema central reside en la concurrencia a nivel de base de datos.
