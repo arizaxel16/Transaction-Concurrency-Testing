@@ -461,3 +461,11 @@ f. Transacción Atómica (AtomicReference/CAS): Las variables atómicas y Compar
 *    Complejidad: Requiere bibliotecas específicas y un entendimiento profundo de su funcionamiento e integración con el gestor de persistencia (JPA). La integración puede no ser trivial.
 *    Overkill: Para un problema relativamente directo de actualizar dos filas relacionadas en una base de datos transaccional, STM puede ser una solución excesivamente compleja comparada con los mecanismos nativos de la BD (bloqueos).
 *    Rendimiento: El rendimiento de STM puede ser variable y sensible a la configuración y patrones de acceso. Menos viable debido a la complejidad y a que el problema central reside en la concurrencia a nivel de base de datos.
+
+### Recomendación:
+
+Dada la naturaleza crítica de las transferencias de fondos donde la integridad y consistencia de los datos es primordial, y considerando la fiabilidad demostrada del 100%:
+
+*    Se recomienda implementar la estrategia de Bloqueo Pesimista (Pessimistic Locking) para el método de transferencia de fondos.
+
+*    Aunque el Bloqueo Optimista puede ofrecer mayor rendimiento en ciertos escenarios, el riesgo (aunque bajo) de fallo y la complejidad añadida lo hacen menos adecuado para esta funcionalidad central. El Bloqueo Pesimista proporciona una garantía de consistencia más fuerte y directa en este contexto.
