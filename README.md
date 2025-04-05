@@ -367,7 +367,7 @@ El bloqueo optimista asume que los conflictos son poco frecuentes. Las transacci
 
 ![Grafica General](/Anexos/GraficaGeneral.jpg)
 
-es el 2 pico donde se ve una distribución de cargas mós o menos.
+es el 2 pico donde se ve una distribución de cargas más o menos.
 
 **Ultimos resultados obtenidos:** 
 Optimistic Lock Transaction Test Completed.
