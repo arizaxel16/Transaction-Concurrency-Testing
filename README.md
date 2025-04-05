@@ -402,7 +402,7 @@ En contraste, en el Host B, la carga de CPU observada en New Relic estaba predom
 
 **Gráfica 4: Monitorización New Relic - Host B**
 
-![Grafica General](/Anexos/HostB.jpg)
+![Grafica General](Anexos/HostB.png)
 
 #### c. Posibles Interpretaciones y Causas
 
