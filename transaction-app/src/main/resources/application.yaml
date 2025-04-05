@@ -5,7 +5,7 @@ spring:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
-    password:
+    password: admin
     hikari:
       minimum-idle: 3 # Minimum number of idle connections to maintain
       maximum-pool-size: 21 # Maximum number of active connections
