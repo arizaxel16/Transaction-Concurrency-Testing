@@ -378,3 +378,41 @@ Tanto el bloqueo pesimista como el optimista ofrecen mecanismos robustos para ma
 * El Bloqueo Pesimista es generalmente preferible cuando la contención es alta y la prioridad es garantizar la ejecución sin fallos por conflicto (a costa de un posible menor paralelismo).
 * El Bloqueo Optimista tiende a ser más eficiente cuando la contención es baja o moderada, permitiendo mayor paralelismo, pero requiere una gestión cuidadosa de los reintentos ante fallos.
 
+### 4. Observaciones Adicionales: Distribución de Carga (New Relic)
+
+Durante la ejecución de las pruebas de concurrencia, se utilizó New Relic para monitorizar el rendimiento y la utilización de recursos en los hosts donde se ejecutaba la aplicación y la base de datos. Se observaron diferencias notables en la distribución de la carga de CPU entre dos entornos de prueba distintos, denominados Host A y Host B.
+
+#### a. Host A: Distribución Equitativa de Carga
+
+En el Host A, las gráficas de utilización de CPU de New Relic mostraron una distribución de carga relativamente equitativa entre el proceso Java de la aplicación y el proceso de la base de datos PostgreSQL, particularmente durante las fases de mayor intensidad de las pruebas. Como se puede apreciar en la imagen adjunta, especialmente en los picos finales de la prueba, existe un balance notable donde tanto la aplicación Java como la base de datos PostgreSQL consumen una porción significativa de los recursos de CPU.
+
+**Observación Clave:**
+* Carga compartida entre la aplicación (Java) y la base de datos (PostgreSQL).
+* Indica que la base de datos estaba realizando un trabajo considerable (procesando consultas, gestionando bloqueos, realizando I/O) en respuesta a las solicitudes de la aplicación.
+
+![Grafica General](/Anexos/GraficaGeneral.jpg)
+
+#### b. Host B: Carga Concentrada en Java
+
+En contraste, en el Host B, la carga de CPU observada en New Relic estaba predominantemente concentrada en el proceso Java. El proceso de PostgreSQL mostraba una utilización significativamente menor durante las mismas pruebas, casi insignificante en comparación con la carga del proceso Java.
+
+**Observación Clave:**
+* La mayor parte de la carga de CPU recae sobre la aplicación (Java).
+* La base de datos (PostgreSQL) muestra una actividad de CPU muy baja.
+
+**Gráfica 4: Monitorización New Relic - Host B**
+
+![Grafica General](/Anexos/HostB.jpg)
+
+#### c. Posibles Interpretaciones y Causas
+
+Esta disparidad en la distribución de carga entre Host A y Host B, ejecutando presumiblemente el mismo código y pruebas, sugiere que la interacción entre la aplicación y la base de datos no fue la misma o que existían diferencias subyacentes en la configuración o el entorno. Algunas posibles causas para investigar incluyen:
+
+1.  **Configuración del Pool de Conexiones:** Diferencias en la configuración del pool de conexiones (ej. HikariCP, C3P0) entre los hosts podrían afectar cómo y cuántas conexiones se establecen y reutilizan, impactando la carga en la base de datos. Un pool mal configurado en Host B podría estar limitando el acceso a la BD.
+2.  **Latencia de Red:** Si la base de datos no residía en el mismo host que la aplicación, una mayor latencia de red entre la aplicación en Host B y la base de datos podría causar que el proceso Java pase más tiempo esperando respuestas, inflando su tiempo de CPU relativo mientras la BD está ociosa.
+3.  **Recursos de la Base de Datos:** Podría ser que la instancia de PostgreSQL accesible desde Host B estuviera limitada en recursos (CPU, I/O, memoria) o tuviera una configuración diferente (ej. `max_connections`, `work_mem`), actuando como un cuello de botella que impide que procese más carga, dejando a la aplicación Java esperando o manejando errores.
+4.  **Configuración del Sistema Operativo o JVM:** Diferencias a nivel de Sistema Operativo o en los parámetros de la Máquina Virtual Java (JVM) entre Host A y Host B podrían influir en el rendimiento de la aplicación o su capacidad para interactuar eficientemente con la red o la base de datos.
+5.  **Diferencias Sutiles en la Carga de Prueba:** Aunque se intentara replicar la prueba, diferencias en el estado inicial de los datos o variaciones menores en la ejecución podrían haber llevado a patrones de acceso distintos.
+
+**Conclusión de la Observación:**
+La diferencia observada es significativa. Mientras que el Host A muestra una interacción aparentemente saludable y balanceada donde la base de datos participa activamente, el Host B sugiere un posible cuello de botella relacionado con la base de datos o la comunicación con ella, o una configuración subóptima que concentra la carga en la aplicación. Se requeriría una investigación más profunda en las configuraciones y métricas detalladas de ambos hosts y sus bases de datos para determinar la causa raíz exacta de esta discrepancia.
