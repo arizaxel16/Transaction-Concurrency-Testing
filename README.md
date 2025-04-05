@@ -461,6 +461,35 @@ f. Transacción Atómica (AtomicReference/CAS): Las variables atómicas y Compar
 *    Complejidad: Requiere bibliotecas específicas y un entendimiento profundo de su funcionamiento e integración con el gestor de persistencia (JPA). La integración puede no ser trivial.
 *    Overkill: Para un problema relativamente directo de actualizar dos filas relacionadas en una base de datos transaccional, STM puede ser una solución excesivamente compleja comparada con los mecanismos nativos de la BD (bloqueos).
 *    Rendimiento: El rendimiento de STM puede ser variable y sensible a la configuración y patrones de acceso. Menos viable debido a la complejidad y a que el problema central reside en la concurrencia a nivel de base de datos.
+### Configuración Ideal
+
+```java
+spring:
+  application:
+    name: transaction-app
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: admin
+    hikari:
+      minimum-idle: 3 # Minimum number of idle connections to maintain
+      maximum-pool-size: 21 # Maximum number of active connections
+      idle-timeout: 300000 # Maximum time (in milliseconds) that a connection can sit idle in the pool (5 minutes)
+      max-lifetime: 1800000 # Maximum lifetime (in milliseconds) of a connection in the pool (30 minutes)
+      connection-timeout: 30000 # Maximum time (in milliseconds) to wait for a connection from the pool (30 seconds)
+      validation-timeout: 5000 # Maximum time (in milliseconds) to wait for a connection to be validated as alive
+      leak-detection-threshold: 0 # Time in milliseconds before logging a message about a potential connection leak (0 disables it)
+      # connection-init-sql: SELECT 1 # SQL query to run to test new connections
+      # pool-name: HikariPool-1 # You can customize the pool name if needed
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
+```
 
 ### Recomendación:
 
