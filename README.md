@@ -324,9 +324,12 @@ Resultados Cuantitativos (Pesimista):
 
 * Tasa de éxito bajo carga simulada de [Número] usuarios concurrentes: 100%
 * Throughput promedio (transferencias/segundo):
+
 ![Grafica ThroPessimistic](/Anexos/ThroPessimistic.png)
+
 * Latencia promedio por transferencia exitosa: 3ms
 Gráfica 1: Rendimiento del Bloqueo Pesimista vs. Carga Concurrente
+
 ![Grafica General](/Anexos/GraficaGeneral.jpg)
 
 Aquí en este diagrama el es el 3 pico donde se la distribución de carga correcta entre BD y Java.
